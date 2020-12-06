@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::io;
 use std::io::Cursor;
-use std::ops::DerefMut;
 
 use bitvec::vec::BitVec;
 use byteorder::{LE, ReadBytesExt};
@@ -20,11 +19,13 @@ use crate::map::NPCData;
 use crate::npc::boss::BossNPC;
 use crate::physics::PhysicalEntity;
 use crate::player::Player;
+use crate::rng::Xoroshiro32PlusPlus;
 use crate::shared_game_state::SharedGameState;
 use crate::stage::Stage;
 use crate::str;
 
 pub mod balrog;
+pub mod booster;
 pub mod boss;
 pub mod chaco;
 pub mod characters;
@@ -112,9 +113,10 @@ pub struct NPC {
     pub action_counter2: u16,
     pub anim_counter: u16,
     pub anim_rect: Rect<u16>,
+    pub rng: Xoroshiro32PlusPlus,
 }
 
-static PARTICLE_NPCS: [u16; 11] = [1, 4, 11, 73, 84, 86, 87, 108, 129, 199, 355];
+static PARTICLE_NPCS: [u16; 12] = [1, 4, 11, 45, 73, 84, 86, 87, 108, 129, 199, 355];
 
 impl NPC {
     pub fn get_start_index(&self) -> u16 {
@@ -160,6 +162,7 @@ impl NPC {
             action_counter2: 0,
             anim_counter: 0,
             anim_rect: Rect { left: 0, top: 0, right: 0, bottom: 0 },
+            rng: Xoroshiro32PlusPlus::new(0),
         }
     }
 }
@@ -211,7 +214,10 @@ impl GameEntity<([&mut Player; 2], &BTreeMap<u16, RefCell<NPC>>, &mut Stage)> fo
             41 => self.tick_n041_busted_door(state),
             42 => self.tick_n042_sue(state, players, map),
             43 => self.tick_n043_chalkboard(state),
+            44 => self.tick_n044_polish(state),
+            45 => self.tick_n045_baby(state),
             46 => self.tick_n046_hv_trigger(players),
+            47 => self.tick_n047_sandcroc(state, players),
             52 => self.tick_n052_sitting_blue_robot(state),
             55 => self.tick_n055_kazuma(state),
             58 => self.tick_n058_basu(state, players),
@@ -268,10 +274,14 @@ impl GameEntity<([&mut Player; 2], &BTreeMap<u16, RefCell<NPC>>, &mut Stage)> fo
             110 => self.tick_n110_puchi(state, players),
             111 => self.tick_n111_quote_teleport_out(state, players),
             112 => self.tick_n112_quote_teleport_in(state, players),
+            113 => self.tick_n113_professor_booster(state),
             114 => self.tick_n114_press(state, players),
+            124 => self.tick_n124_sunstone(state),
+            125 => self.tick_n125_hidden_item(state),
             129 => self.tick_n129_fireball_snake_trail(state),
             149 => self.tick_n149_horizontal_moving_block(state, players),
             150 => self.tick_n150_quote(state, players),
+            151 => self.tick_n151_blue_robot_standing(state),
             154 => self.tick_n154_gaudi_dead(state),
             157 => self.tick_n157_vertical_moving_block(state, players),
             192 => self.tick_n192_scooter(state),
@@ -279,6 +289,7 @@ impl GameEntity<([&mut Player; 2], &BTreeMap<u16, RefCell<NPC>>, &mut Stage)> fo
             194 => self.tick_n194_broken_blue_robot(state),
             199 => self.tick_n199_wind_particles(state),
             211 => self.tick_n211_small_spikes(state),
+            234 => self.tick_n234_red_flowers_picked(state),
             298 => self.tick_n298_intro_doctor(state),
             299 => self.tick_n299_intro_balrog_misery(state),
             300 => self.tick_n300_intro_demon_crown(state),
@@ -472,6 +483,11 @@ impl NPCMap {
             action_counter2: 0,
             anim_counter: 0,
             anim_rect: Rect::new(0, 0, 0, 0),
+            rng: Xoroshiro32PlusPlus::new((data.id as u32)
+                .wrapping_sub(data.npc_type as u32)
+                .wrapping_add(data.flag_num as u32)
+                .wrapping_mul(214013)
+                .wrapping_add(2531011) >> 5),
         };
 
         let cell = RefCell::new(npc);
@@ -524,6 +540,7 @@ impl NPCMap {
             action_counter2: 0,
             anim_counter: 0,
             anim_rect: Rect::new(0, 0, 0, 0),
+            rng: Xoroshiro32PlusPlus::new(0),
         }
     }
 
@@ -699,6 +716,12 @@ impl NPCMap {
                         Direction::Left
                     };
                 }
+
+                npc.rng = Xoroshiro32PlusPlus::new((npc.id as u32)
+                    .wrapping_sub(npc.npc_type as u32)
+                    .wrapping_add(npc.flag_num as u32)
+                    .wrapping_mul(214013)
+                    .wrapping_add(2531011) >> 5);
 
                 self.ids.insert(id);
                 self.npcs.insert(id, RefCell::new(*npc));
