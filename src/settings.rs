@@ -1,10 +1,18 @@
 use ggez::{Context, GameResult};
+use gilrs::GamepadId;
 use serde::{Deserialize, Serialize};
 use winit::event::VirtualKeyCode;
 
 use crate::input::keyboard_player_controller::KeyboardController;
 use crate::input::player_controller::PlayerController;
 use crate::player::TargetPlayer;
+use crate::input::gilrs_player_controller::GilrsPlayerController;
+
+#[derive(Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ControllerType {
+    Keyboard,
+    Gamepad(usize),
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Settings {
@@ -15,6 +23,8 @@ pub struct Settings {
     pub touch_controls: bool,
     pub player1_key_map: PlayerKeyMap,
     pub player2_key_map: PlayerKeyMap,
+    pub player1_controller_type: ControllerType,
+    pub player2_controller_type: ControllerType,
     #[serde(skip)]
     pub speed: f64,
     #[serde(skip)]
@@ -25,17 +35,29 @@ pub struct Settings {
     pub debug_outlines: bool,
 }
 
+fn to_gamepad_id(raw_id: usize) -> GamepadId {
+    unsafe {
+        std::mem::transmute(raw_id)
+    }
+}
+
 impl Settings {
     pub fn load(_ctx: &mut Context) -> GameResult<Settings> {
         Ok(Settings::default())
     }
 
     pub fn create_player1_controller(&self) -> Box<dyn PlayerController> {
-        Box::new(KeyboardController::new(TargetPlayer::Player1))
+        match self.player1_controller_type {
+            ControllerType::Keyboard => Box::new(KeyboardController::new(TargetPlayer::Player1)),
+            ControllerType::Gamepad(id) => Box::new(GilrsPlayerController::new(to_gamepad_id(id))),
+        }
     }
 
     pub fn create_player2_controller(&self) -> Box<dyn PlayerController> {
-        Box::new(KeyboardController::new(TargetPlayer::Player2))
+        match self.player2_controller_type {
+            ControllerType::Keyboard => Box::new(KeyboardController::new(TargetPlayer::Player2)),
+            ControllerType::Gamepad(id) => Box::new(GilrsPlayerController::new(to_gamepad_id(id))),
+        }
     }
 }
 
@@ -49,6 +71,8 @@ impl Default for Settings {
             touch_controls: cfg!(target_os = "android"),
             player1_key_map: p1_default_keymap(),
             player2_key_map: p2_default_keymap(),
+            player1_controller_type: ControllerType::Keyboard,
+            player2_controller_type: ControllerType::Keyboard,
             speed: 1.0,
             god_mode: false,
             infinite_booster: false,

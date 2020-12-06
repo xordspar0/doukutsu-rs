@@ -351,8 +351,6 @@ impl StageData {
                 let npc2 = from_shift_jis(&npc2_buf[0..zero_index(&npc2_buf)]);
                 let name = from_shift_jis(&name_buf[0..zero_index(&name_buf)]);
 
-                println!("bg type: {}", bg_type);
-
                 let stage = StageData {
                     name: name.clone(),
                     map: map.clone(),

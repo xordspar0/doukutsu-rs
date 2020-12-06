@@ -93,6 +93,12 @@ impl Game {
     }
 
     fn update(&mut self, ctx: &mut Context) -> GameResult {
+        if let Some(gilrs) = self.state.gilrs.as_mut() {
+            while let Some(_) = gilrs.next_event() {
+                //
+            }
+        }
+
         if let Some(scene) = self.scene.as_mut() {
             match self.state.timing_mode {
                 TimingMode::_50Hz | TimingMode::_60Hz => {
@@ -160,10 +166,9 @@ impl Game {
         Ok(())
     }
 
-    fn key_down_event(&mut self, key_code: KeyCode, _key_mod: KeyMods, repeat: bool) {
+    fn key_down_event(&mut self, key_code: KeyCode, repeat: bool) {
         if repeat { return; }
 
-        // todo: proper keymaps?
         let state = &mut self.state;
         match key_code {
             KeyCode::F7 => { state.set_speed(1.0) }
@@ -182,10 +187,6 @@ impl Game {
             KeyCode::F12 => { state.settings.infinite_booster = !state.settings.infinite_booster }
             _ => {}
         }
-    }
-
-    fn key_up_event(&mut self, key_code: KeyCode, _key_mod: KeyMods) {
-        //
     }
 }
 
@@ -354,8 +355,6 @@ pub fn init() -> GameResult {
                     }
                     WindowEvent::Resized(_) => {
                         if let (Some(ctx), Some(game)) = (&mut context, &mut game) {
-                            let (w, h) = graphics::drawable_size(ctx);
-
                             game.state.tmp_canvas = Canvas::with_window_size(ctx).unwrap();
                             game.state.game_canvas = Canvas::with_window_size(ctx).unwrap();
                             game.state.lightmap_canvas = Canvas::with_window_size(ctx).unwrap();
@@ -373,20 +372,14 @@ pub fn init() -> GameResult {
                         KeyboardInput {
                             state: el_state,
                             virtual_keycode: Some(keycode),
-                            modifiers,
                             ..
                         },
                         ..
                     } => {
                         if let (Some(ctx), Some(game)) = (&mut context, &mut game) {
-                            match el_state {
-                                ElementState::Pressed => {
-                                    let repeat = keyboard::is_key_repeated(ctx);
-                                    game.key_down_event(keycode, modifiers.into(), repeat);
-                                }
-                                ElementState::Released => {
-                                    game.key_up_event(keycode, modifiers.into());
-                                }
+                            if el_state == ElementState::Pressed {
+                                let repeat = keyboard::is_key_repeated(ctx);
+                                game.key_down_event(keycode, repeat);
                             }
                         }
                     }

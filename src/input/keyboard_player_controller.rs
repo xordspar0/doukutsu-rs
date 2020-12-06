@@ -23,7 +23,7 @@ bitfield! {
   pub next_weapon, set_next_weapon: 8;
   pub prev_weapon, set_prev_weapon: 9;
   pub escape, set_escape: 10;
-  pub enter, set_enter: 10;
+  pub enter, set_enter: 11;
 }
 
 #[derive(Clone)]

@@ -6,6 +6,7 @@ use chrono::{Datelike, Local};
 use ggez::{Context, filesystem, GameResult, graphics};
 use ggez::filesystem::OpenOptions;
 use ggez::graphics::Canvas;
+use gilrs::Gilrs;
 use num_traits::clamp;
 
 use crate::bmfont_renderer::BMFontRenderer;
@@ -18,7 +19,7 @@ use crate::profile::GameProfile;
 use crate::rng::RNG;
 use crate::scene::game_scene::GameScene;
 use crate::scene::Scene;
-use crate::settings::Settings;
+use crate::settings::{Settings, ControllerType};
 use crate::shaders::Shaders;
 use crate::sound::SoundManager;
 use crate::stage::StageData;
@@ -108,6 +109,7 @@ pub struct SharedGameState {
     pub canvas_size: (f32, f32),
     pub screen_size: (f32, f32),
     pub next_scene: Option<Box<dyn Scene>>,
+    pub gilrs: Option<Gilrs>,
     pub textscript_vm: TextScriptVM,
     pub season: Season,
     pub constants: EngineConstants,
@@ -128,7 +130,18 @@ impl SharedGameState {
 
         let mut constants = EngineConstants::defaults();
         let mut base_path = "/";
-        let settings = Settings::load(ctx)?;
+        let mut settings = Settings::load(ctx)?;
+        let mut gilrs = Gilrs::new().ok();
+
+        if let Some(gilrs) = gilrs.as_mut() {
+            for (id, pad) in gilrs.gamepads() {
+                log::info!("Found gamepad: {} ({})", pad.name(), id);
+            }
+
+            if let Some((id, _)) = gilrs.gamepads().next() {
+                settings.player2_controller_type = ControllerType::Gamepad(id.into());
+            }
+        }
 
         if filesystem::exists(ctx, "/base/Nicalis.bmp") {
             info!("Cave Story+ (PC) data files detected.");
@@ -181,6 +194,7 @@ impl SharedGameState {
             screen_size,
             canvas_size,
             next_scene: None,
+            gilrs,
             textscript_vm: TextScriptVM::new(),
             season,
             constants,
